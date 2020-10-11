@@ -3,12 +3,17 @@
 #include <ncurses.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <fcntl.h>          //Used for UART
+#include <termios.h>        //Used for UART
 
 #include <window.h>
 #include <menu.h>
+#include <uart_utils.h>
 
 pthread_t thread_userinput;
 pthread_t thread_sensordata;
+
+float referencetemperature;
 
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
@@ -24,7 +29,7 @@ int main() {
     initscr(); // Init curses mode
     noecho(); // Don't need to see user input
     cbreak(); // Disable line buffering, gimme every thing
-    keypad(stdscr, TRUE); // Gimme that F button
+    keypad(stdscr, TRUE); // Gimme that spicy F button
     curs_set(0); // Hide cursor
 	refresh();
 
@@ -99,7 +104,7 @@ void *watch_userinput(void *args){
     char str_referencetemperature[50] = "";
     while((menuOption = getch()) != KEY_F(1)){
         if(menuOption == KEY_F(2)){
-            show_message(messageWindow, "Type: potenciometer", "Not implemented yet", "Not implemented yet");
+            // show_message(messageWindow, "Type: potenciometer", "Not implemented yet", "Not implemented yet");
         }
         else if(menuOption == KEY_F(3)){
             float new_referencetemperature;
@@ -111,15 +116,16 @@ void *watch_userinput(void *args){
             mvwprintw(inputWindow, 1, 1, "Type new reference temperature > ");
 
             wscanw(inputWindow, "%f", &new_referencetemperature);
+            referencetemperature = new_referencetemperature;
 
             noecho();
 
             clear_window(inputWindow);
 
             strcpy(str_referencetemperature, "Reference temperature: ");
-            char buff[20];
+            char buff[20] = "";
+            sprintf(buff, "%.2f", referencetemperature);
 
-            gcvt(new_referencetemperature, 20, buff);
             strcat(str_referencetemperature, buff);
             strcat(str_referencetemperature, " oC");
 
@@ -143,9 +149,9 @@ void *watch_userinput(void *args){
             clear_window(inputWindow);
 
             strcpy(str_histeresis, "Histeresis: ");
-            char buff[20];
+            char buff[20] = "";
+            sprintf(buff, "%.2f", new_histeresis);
 
-            gcvt(new_histeresis, 20, buff);
             strcat(str_histeresis, buff);
             strcat(str_histeresis, " oC");
 
@@ -162,7 +168,21 @@ void *watch_sensordata(void *args){
     WINDOW *sensorsDataWindow = (WINDOW*) args;
 
     for(int i = 1, j = 1; ; i++){
-        mvwprintw(sensorsDataWindow, i, j, "asd");
+        char str_printallsensors[100] = "TR: ";
+
+        char buff[20] = "";
+        sprintf(buff, "%.2f", referencetemperature);
+
+        strcat(str_printallsensors, buff);
+        strcat(str_printallsensors, " oC TI: ");
+
+        char buff1[20] = "";
+        sprintf(buff1, "%.2f", getFloat());
+
+        strcat(str_printallsensors, buff1);
+        strcat(str_printallsensors, " oC TE: ");
+
+        mvwprintw(sensorsDataWindow, i, j, str_printallsensors);
         wrefresh(sensorsDataWindow);
         
         if(i == LINES - 2){
