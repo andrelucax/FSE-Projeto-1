@@ -2,9 +2,13 @@
 #include <string.h>
 #include <ncurses.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <window.h>
 #include <menu.h>
+
+pthread_t thread_userinput;
+pthread_t thread_sensordata;
 
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
@@ -46,8 +50,6 @@ int main() {
     print_menuoptions(menuWindow);
 
     show_message(messageWindow, "To start the app please select mode and histeresis", "To set mode: F2 or F3 (see options above)", "To set histeresis: F4");
-    
-    pthread_t thread_userinput;
 
     inpWindows inpWindow;
     inpWindow.inputWindow = inputWindow;
@@ -59,11 +61,9 @@ int main() {
         printf("Fail to create user input thread\n");
         
         return -2;
-    }
+    }    
 
-    pthread_t thread_sensordata;
-
-    if(pthread_create(&thread_sensordata, NULL, watch_sensordata, (void *) &sensorsDataWindow)){
+    if(pthread_create(&thread_sensordata, NULL, watch_sensordata, (void *) sensorsDataWindow)){
         endwin();
         
         printf("Fail to create sensor data thread\n");
@@ -72,7 +72,8 @@ int main() {
     }
 
     pthread_join(thread_userinput, NULL);
-    pthread_join(thread_sensordata, NULL);
+
+    pthread_cancel(thread_sensordata);
 
     msg_goodbye();
     
@@ -84,6 +85,7 @@ int main() {
     getch(); // Wait input to exit
 
     endwin(); // Need to stop curses mode
+
     return 0;
 }
 
@@ -97,7 +99,7 @@ void *watch_userinput(void *args){
     char str_referencetemperature[50] = "";
     while((menuOption = getch()) != KEY_F(1)){
         if(menuOption == KEY_F(2)){
-            show_message(messageWindow, "Type: potenciometer", "Reference temperature: 2.2", "Not implemented yet");
+            show_message(messageWindow, "Type: potenciometer", "Not implemented yet", "Not implemented yet");
         }
         else if(menuOption == KEY_F(3)){
             float new_referencetemperature;
@@ -157,6 +159,22 @@ void *watch_userinput(void *args){
 }
 
 void *watch_sensordata(void *args){
+    WINDOW *sensorsDataWindow = (WINDOW*) args;
+
+    for(int i = 1, j = 1; ; i++){
+        mvwprintw(sensorsDataWindow, i, j, "asd");
+        wrefresh(sensorsDataWindow);
+        
+        if(i == LINES - 2){
+            i = 0;
+            sleep(1);
+            clear_window(sensorsDataWindow);
+        }
+        else{
+            sleep(1);
+        }
+
+    }
 
     return 0;
 }
