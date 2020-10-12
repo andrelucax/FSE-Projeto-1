@@ -55,6 +55,7 @@ int main() {
     };
 
     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_18, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(RPI_V2_GPIO_P1_16, BCM2835_GPIO_FSEL_OUTP);
 
     struct identifier id;
 
@@ -160,16 +161,15 @@ int main() {
     delwin(inputWindow);
     delwin(messageWindow);
 
+    // Turn off vent
+    bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 1);
+    // Turn off res
+    bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
+
     getch(); // Wait input to exit
 
-    endwin(); // Need to stop curses mode
+    endwin(); // Need to stop curses mode or you will be cursed
 
-    bcm2835_gpio_fsel(RPI_V2_GPIO_P1_18, BCM2835_GPIO_FSEL_OUTP);
-
-    // Liga ventilador
-    bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 1);
-    // Desliga resistor
-    bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
 
     return 0;
 }
@@ -346,37 +346,37 @@ void handleData(float tempWanted, float oscValue, float temp){
     oscValue /= 2;
 
     if(temp > tempWanted + oscValue){
-        // Liga ventilador
+        // Turn on vent
         bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 0);
-        // Desliga resistor
+        // Turn off resistor
         bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
     }
     else if(temp < tempWanted - oscValue){
-        // Desliga ventilador
+        // Turn off vent
         bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 1);
-        // Liga resistor
+        // Turn on resistor
         bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 0);
     }
 
     if(logIts == 3){
         logIts = 0;
-        // Abrir arquivo CVS
+        // Open CSV file
         FILE *arq;
         arq = fopen("./dados.csv", "r+");
         if(arq){
-            // Caso arquivo estiver aberto vai pro final dele
+            // If exists go to end
             fseek(arq, 0, SEEK_END);
         }
         else{
-            // Abre arquivo no modo append
+            // Oppen in append mode
             arq = fopen("./dados.csv", "a");
 
-            // Cabecalho
+            // header
             fprintf(arq, "Temperature Int (oC), Temperature Ex (oC), Temperature Re (oC), Data\n");
         }
 
         if(arq){
-            // Escrever os ultimos valores lidos
+            // Last values every 2 secs
             time_t rawtime;
             struct tm * timeinfo;
 
@@ -390,8 +390,10 @@ void handleData(float tempWanted, float oscValue, float temp){
             exit(-1);
         }
 
-        // fechar arquivo CVS
+        // close CSV file
         fclose(arq);
     }
     logIts++;
+
+    // TODO Show in LCD
 }
