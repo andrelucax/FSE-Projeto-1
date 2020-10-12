@@ -9,12 +9,15 @@
 #include <window.h>
 #include <menu.h>
 #include <uart_utils.h>
+#include <linux_userspace.c>
 
 pthread_t thread_userinput;
 pthread_t thread_sensordata;
 
 float referencetemperature;
 bool canStart = false;
+struct bme280_dev dev;
+int8_t rslt = BME280_OK;
 
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
@@ -25,6 +28,38 @@ typedef struct inpWindows{
 } inpWindows;
 
 int main() {
+    struct identifier id;
+
+    char path[] = "/dev/i2c-1";
+
+    if ((id.fd = open(path, O_RDWR)) < 0)
+    {
+        fprintf(stderr, "Failed to open the i2c bus %s\n", path);
+        exit(1);
+    }
+
+    id.dev_addr = BME280_I2C_ADDR_PRIM;
+
+    if (ioctl(id.fd, I2C_SLAVE, id.dev_addr) < 0)
+    {
+        fprintf(stderr, "Failed to acquire bus access and/or talk to slave.\n");
+        exit(1);
+    }
+
+    dev.intf = BME280_I2C_INTF;
+    dev.read = user_i2c_read;
+    dev.write = user_i2c_write;
+    dev.delay_us = user_delay_us;
+
+    dev.intf_ptr = &id;
+
+    rslt = bme280_init(&dev);
+    if (rslt != BME280_OK)
+    {
+        fprintf(stderr, "Failed to initialize the device (code %+d).\n", rslt);
+        exit(1);
+    }
+
     int row, col;
 
     initscr(); // Init curses mode
@@ -191,6 +226,20 @@ void *watch_sensordata(void *args){
 
             strcat(str_printallsensors, buff1);
             strcat(str_printallsensors, " oC TE: ");
+
+            float _temp;
+            rslt = stream_sensor_data_forced_mode(&dev, &_temp);
+            if (rslt != BME280_OK)
+            {
+                // fprintf(stderr, "Failed to stream sensor data (code %+d).\n", rslt);
+                exit(1);
+            }
+
+            char buff2[20] = "";
+            sprintf(buff2, "%.2f", _temp);
+
+            strcat(str_printallsensors, buff2);
+            strcat(str_printallsensors, " oC");
 
             mvwprintw(sensorsDataWindow, i, j, empty_line);
             mvwprintw(sensorsDataWindow, i, j, str_printallsensors);
