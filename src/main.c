@@ -6,31 +6,43 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <bcm2835.h>
+#include <time.h>
 
 #include <window.h>
 #include <menu.h>
 #include <uart_utils.h>
 #include <linux_userspace.c>
 
+// Threads
 pthread_t thread_userinput;
 pthread_t thread_sensordata;
 pthread_t thread_potenciometer;
 
-int mode = 0;
+int mode = 0; // Potenciometer or keyboard input
+int logIts = 0; // need to log in value 3 and reset to 0
+
 float referencetemperature;
+float tempIn;
+float tempEx;
 float potenciometerVal;
 float g_histeresis;
+
 bool canStart = false;
+
 struct bme280_dev dev;
 int8_t rslt = BME280_OK;
+
+// Strings
 char str_histeresis[50] = "";
 char str_referencetemperature[50] = "";
 
+// Threads functions
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
 void *watch_potenciometer(void *args);
 void handleData(float tempWanted, float oscValue, float temp);
 
+// To pass 2 args to userInputThread
 typedef struct inpWindows{
     WINDOW *inputWindow;
     WINDOW *messageWindow;
@@ -260,6 +272,7 @@ void *watch_sensordata(void *args){
             getDatas(&res1, &res2);
 
             sprintf(buff1, "%.2f", res1);
+            tempIn = res1;
             potenciometerVal = res2;
 
             strcat(str_printallsensors, buff1);
@@ -275,6 +288,7 @@ void *watch_sensordata(void *args){
 
             char buff2[20] = "";
             sprintf(buff2, "%.2f", _temp);
+            tempEx = _temp;
 
             strcat(str_printallsensors, buff2);
             strcat(str_printallsensors, " oC");
@@ -344,4 +358,40 @@ void handleData(float tempWanted, float oscValue, float temp){
         bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 0);
     }
 
+    if(logIts == 3){
+        logIts = 0;
+        // Abrir arquivo CVS
+        FILE *arq;
+        arq = fopen("./dados.csv", "r+");
+        if(arq){
+            // Caso arquivo estiver aberto vai pro final dele
+            fseek(arq, 0, SEEK_END);
+        }
+        else{
+            // Abre arquivo no modo append
+            arq = fopen("./dados.csv", "a");
+
+            // Cabecalho
+            fprintf(arq, "Temperature Int (oC), Temperature Ex (oC), Temperature Re (oC), Data\n");
+        }
+
+        if(arq){
+            // Escrever os ultimos valores lidos
+            time_t rawtime;
+            struct tm * timeinfo;
+
+            time(&rawtime);
+            timeinfo = localtime(&rawtime);
+
+            fprintf(arq, "%0.2lf, %0.2lf, %0.2lf, %s", tempIn, tempEx, referencetemperature, asctime (timeinfo));
+        }
+        else{
+            printf("Nao foi possivel criar/abrir o arquivo em modo escrita. Permissoes?\n");
+            exit(-1);
+        }
+
+        // fechar arquivo CVS
+        fclose(arq);
+    }
+    logIts++;
 }
