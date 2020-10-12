@@ -3,8 +3,9 @@
 #include <ncurses.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <fcntl.h>          //Used for UART
-#include <termios.h>        //Used for UART
+#include <fcntl.h>
+#include <termios.h>
+#include <bcm2835.h>
 
 #include <window.h>
 #include <menu.h>
@@ -18,6 +19,7 @@ pthread_t thread_potenciometer;
 int mode = 0;
 float referencetemperature;
 float potenciometerVal;
+float g_histeresis;
 bool canStart = false;
 struct bme280_dev dev;
 int8_t rslt = BME280_OK;
@@ -27,6 +29,7 @@ char str_referencetemperature[50] = "";
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
 void *watch_potenciometer(void *args);
+void handleData(float tempWanted, float oscValue, float temp);
 
 typedef struct inpWindows{
     WINDOW *inputWindow;
@@ -34,6 +37,13 @@ typedef struct inpWindows{
 } inpWindows;
 
 int main() {
+    if (!bcm2835_init()){
+        printf("Erro ao iniciar bcm2835\n");
+        exit(1);
+    };
+
+    bcm2835_gpio_fsel(RPI_V2_GPIO_P1_18, BCM2835_GPIO_FSEL_OUTP);
+
     struct identifier id;
 
     char path[] = "/dev/i2c-1";
@@ -41,7 +51,7 @@ int main() {
     if ((id.fd = open(path, O_RDWR)) < 0)
     {
         fprintf(stderr, "Failed to open the i2c bus %s\n", path);
-        exit(1);
+        exit(2);
     }
 
     id.dev_addr = BME280_I2C_ADDR_PRIM;
@@ -49,7 +59,7 @@ int main() {
     if (ioctl(id.fd, I2C_SLAVE, id.dev_addr) < 0)
     {
         fprintf(stderr, "Failed to acquire bus access and/or talk to slave.\n");
-        exit(1);
+        exit(3);
     }
 
     dev.intf = BME280_I2C_INTF;
@@ -63,7 +73,7 @@ int main() {
     if (rslt != BME280_OK)
     {
         fprintf(stderr, "Failed to initialize the device (code %+d).\n", rslt);
-        exit(1);
+        exit(4);
     }
 
     int row, col;
@@ -142,6 +152,13 @@ int main() {
 
     endwin(); // Need to stop curses mode
 
+    bcm2835_gpio_fsel(RPI_V2_GPIO_P1_18, BCM2835_GPIO_FSEL_OUTP);
+
+    // Liga ventilador
+    bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 1);
+    // Desliga resistor
+    bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
+
     return 0;
 }
 
@@ -194,6 +211,7 @@ void *watch_userinput(void *args){
             mvwprintw(inputWindow, 1, 1, "Type new histeresis temperature > ");
 
             wscanw(inputWindow, "%f", &new_histeresis);
+            g_histeresis = new_histeresis;
 
             noecho();
 
@@ -264,6 +282,8 @@ void *watch_sensordata(void *args){
             mvwprintw(sensorsDataWindow, i, j, empty_line);
             mvwprintw(sensorsDataWindow, i, j, str_printallsensors);
             wrefresh(sensorsDataWindow);
+
+            handleData(referencetemperature, g_histeresis, res1);
         }
         else{
             i = 0;
@@ -306,4 +326,22 @@ void *watch_potenciometer(void *args){
             show_message(messageWindow, "Type: potenciometer", str_referencetemperature, str_histeresis);
         }
     }
+}
+
+void handleData(float tempWanted, float oscValue, float temp){
+    oscValue /= 2;
+
+    if(temp > tempWanted + oscValue){
+        // Liga ventilador
+        bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 0);
+        // Desliga resistor
+        bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
+    }
+    else if(temp < tempWanted - oscValue){
+        // Desliga ventilador
+        bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 1);
+        // Liga resistor
+        bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 0);
+    }
+
 }
