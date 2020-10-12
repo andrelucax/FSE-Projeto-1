@@ -12,6 +12,7 @@
 #include <menu.h>
 #include <uart_utils.h>
 #include <linux_userspace.c>
+#include <control_lcd_16x2.h>
 
 // Threads
 pthread_t thread_userinput;
@@ -36,6 +37,8 @@ int8_t rslt = BME280_OK;
 char str_histeresis[50] = "";
 char str_referencetemperature[50] = "";
 
+void onExit(bool waitUI);
+
 // Threads functions
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
@@ -50,12 +53,14 @@ typedef struct inpWindows{
 
 int main() {
     if (!bcm2835_init()){
-        printf("Erro ao iniciar bcm2835\n");
+        printf("Error on bcm2835\n");
         exit(1);
     };
 
     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_18, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_fsel(RPI_V2_GPIO_P1_16, BCM2835_GPIO_FSEL_OUTP);
+
+    lcd_init();
 
     struct identifier id;
 
@@ -151,27 +156,40 @@ int main() {
 
     pthread_join(thread_userinput, NULL);
 
-    pthread_cancel(thread_sensordata);
-    pthread_cancel(thread_potenciometer);
-
-    msg_goodbye();
-    
     delwin(menuWindow);
     delwin(sensorsDataWindow);
     delwin(inputWindow);
     delwin(messageWindow);
+
+    onExit(true);
+
+    return 0;
+}
+
+void onExit(bool waitUI){
+    pthread_cancel(thread_userinput);
+    pthread_cancel(thread_sensordata);
+    pthread_cancel(thread_potenciometer);
 
     // Turn off vent
     bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 1);
     // Turn off res
     bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
 
-    getch(); // Wait input to exit
+    if(waitUI){
+        msg_goodbye();
+
+        lcdLoc(LINE1);
+        typeln("   Good Bye!   ");
+
+        lcdLoc(LINE2);
+        typeln("Have a nice day");
+        getch(); // Wait input to exit
+    }
 
     endwin(); // Need to stop curses mode or you will be cursed
 
-
-    return 0;
+    exit(0);
 }
 
 void *watch_userinput(void *args){
@@ -395,5 +413,13 @@ void handleData(float tempWanted, float oscValue, float temp){
     }
     logIts++;
 
-    // TODO Show in LCD
+    lcdLoc(LINE1);
+    char lineLCD1[16] = "";
+    sprintf(lineLCD1, "TI%.2f TE%.2f", tempIn, tempEx);
+    typeln(lineLCD1);
+
+    lcdLoc(LINE2);
+    char lineLCD2[16] = "";
+    sprintf(lineLCD2, "TR %.2f", referencetemperature);
+    typeln(lineLCD2);
 }
