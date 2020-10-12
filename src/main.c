@@ -7,6 +7,7 @@
 #include <termios.h>
 #include <bcm2835.h>
 #include <time.h>
+#include<signal.h>
 
 #include <window.h>
 #include <menu.h>
@@ -38,6 +39,7 @@ char str_histeresis[50] = "";
 char str_referencetemperature[50] = "";
 
 void onExit(bool waitUI);
+void sigHandler(int signal);
 
 // Threads functions
 void *watch_userinput(void *args);
@@ -52,6 +54,11 @@ typedef struct inpWindows{
 } inpWindows;
 
 int main() {
+    signal(SIGKILL, sigHandler);
+    signal(SIGSTOP, sigHandler);
+    signal(SIGINT, sigHandler);
+    signal(SIGTERM, sigHandler);
+
     if (!bcm2835_init()){
         printf("Error on bcm2835\n");
         exit(1);
@@ -176,6 +183,8 @@ void onExit(bool waitUI){
     // Turn off res
     bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
 
+    ClrLcd();
+
     if(waitUI){
         msg_goodbye();
 
@@ -190,6 +199,10 @@ void onExit(bool waitUI){
     endwin(); // Need to stop curses mode or you will be cursed
 
     exit(0);
+}
+
+void sigHandler(int signal){
+    onExit(false);
 }
 
 void *watch_userinput(void *args){
