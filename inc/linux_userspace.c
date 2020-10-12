@@ -313,7 +313,7 @@ int8_t stream_sensor_data_forced_mode(struct bme280_dev *dev, float *temp)
     /* Wait for the measurement to complete and print data */
     dev->delay_us(req_delay, dev->intf_ptr);
 
-    sleep(1);
+    usleep(100000);
 
     rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, dev);
     if (rslt != BME280_OK)

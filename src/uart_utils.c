@@ -25,9 +25,8 @@ int startUart(){
     return uart0_filestream;
 }
 
-float getFloat(){
+void getDatas(float *res1, float *res2){
     int uart = startUart();
-    float resVal = -1.0;
 
     if (uart != -1){
         char buffer[] = {0xA1, 8, 2, 5, 1};
@@ -35,18 +34,67 @@ float getFloat(){
         int res = write(uart, &buffer, 5);
         if (res < 0)
         {
-            printf("UART write error\n");
+            // printf("UART write error\n");
+            close(uart);
+            return;
+        }
+        
+        usleep(200000);
+
+        res = read(uart, (void*) res1, 4);
+        if (res < 0)
+        {
+            close(uart);
+            // printf("UART read error\n");
+            return;
+        }
+
+        char buffer1[] = {0xA2, 8, 2, 5, 1};
+
+        int ress = write(uart, &buffer1, 5);
+        if (ress < 0)
+        {
+            // printf("UART write error\n");
+            close(uart);
+            return;
+        }
+        
+        usleep(200000);
+
+        ress = read(uart, (void*) res2, 4);
+        close(uart);
+        if (ress < 0)
+        {
+            // printf("UART read error\n");
+            return;
+        }
+    }
+
+    return;
+}
+
+float getPotenciometer(){
+    int uart = startUart();
+    float resVal = -1.0;
+
+    if (uart != -1){
+        char buffer[] = {0xA2, 8, 2, 5, 1};
+
+        int res = write(uart, &buffer, 5);
+        if (res < 0)
+        {
+            // printf("UART write error\n");
             close(uart);
             return resVal;
         }
         
-        sleep(1);
+        usleep(400000);
 
         res = read(uart, (void*)&resVal, 4);
         close(uart);
         if (res < 0)
         {
-            printf("UART read error\n");
+            // printf("UART read error\n");
             return resVal;
         }
     }

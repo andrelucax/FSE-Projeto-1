@@ -13,14 +13,20 @@
 
 pthread_t thread_userinput;
 pthread_t thread_sensordata;
+pthread_t thread_potenciometer;
 
+int mode = 0;
 float referencetemperature;
+float potenciometerVal;
 bool canStart = false;
 struct bme280_dev dev;
 int8_t rslt = BME280_OK;
+char str_histeresis[50] = "";
+char str_referencetemperature[50] = "";
 
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
+void *watch_potenciometer(void *args);
 
 typedef struct inpWindows{
     WINDOW *inputWindow;
@@ -112,9 +118,18 @@ int main() {
         return -3;
     }
 
+    if(pthread_create(&thread_potenciometer, NULL, watch_potenciometer, (void *) messageWindow)){
+        endwin();
+        
+        printf("Fail to create potenciometer thread\n");
+        
+        return -4;
+    }
+
     pthread_join(thread_userinput, NULL);
 
     pthread_cancel(thread_sensordata);
+    pthread_cancel(thread_potenciometer);
 
     msg_goodbye();
     
@@ -136,13 +151,12 @@ void *watch_userinput(void *args){
     WINDOW *messageWindow = inpWindow->messageWindow;
 
     int menuOption;
-    char str_histeresis[50] = "";
-    char str_referencetemperature[50] = "";
     while((menuOption = getch()) != KEY_F(1)){
         if(menuOption == KEY_F(2)){
-            // show_message(messageWindow, "Type: potenciometer", "Not implemented yet", "Not implemented yet");
+            mode = 1;
         }
         else if(menuOption == KEY_F(3)){
+            mode = 2;
             float new_referencetemperature;
 
             echo();
@@ -222,7 +236,13 @@ void *watch_sensordata(void *args){
             strcat(str_printallsensors, " oC TI: ");
 
             char buff1[20] = "";
-            sprintf(buff1, "%.2f", getFloat());
+
+            float res1;
+            float res2;
+            getDatas(&res1, &res2);
+
+            sprintf(buff1, "%.2f", res1);
+            potenciometerVal = res2;
 
             strcat(str_printallsensors, buff1);
             strcat(str_printallsensors, " oC TE: ");
@@ -262,4 +282,28 @@ void *watch_sensordata(void *args){
     }
 
     return 0;
+}
+
+void *watch_potenciometer(void *args){
+    WINDOW *messageWindow = (WINDOW*) args;
+
+    while(1){
+        if(mode != 1){
+            sleep(1);
+            continue;
+        }
+        usleep(100000);
+        referencetemperature = potenciometerVal;
+        strcpy(str_referencetemperature, "Reference temperature: ");
+        char buff[20] = "";
+        sprintf(buff, "%.2f", referencetemperature);
+
+        strcat(str_referencetemperature, buff);
+        strcat(str_referencetemperature, " oC");
+
+        if(strcmp(str_histeresis, "")){
+            canStart = true;
+            show_message(messageWindow, "Type: potenciometer", str_referencetemperature, str_histeresis);
+        }
+    }
 }
