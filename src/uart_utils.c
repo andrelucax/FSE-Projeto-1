@@ -72,32 +72,3 @@ void getDatas(float *res1, float *res2){
 
     return;
 }
-
-float getPotenciometer(){
-    int uart = startUart();
-    float resVal = -1.0;
-
-    if (uart != -1){
-        char buffer[] = {0xA2, 8, 2, 5, 1};
-
-        int res = write(uart, &buffer, 5);
-        if (res < 0)
-        {
-            // printf("UART write error\n");
-            close(uart);
-            return resVal;
-        }
-        
-        usleep(400000);
-
-        res = read(uart, (void*)&resVal, 4);
-        close(uart);
-        if (res < 0)
-        {
-            // printf("UART read error\n");
-            return resVal;
-        }
-    }
-
-    return resVal;
-}

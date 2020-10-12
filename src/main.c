@@ -292,7 +292,7 @@ void *watch_potenciometer(void *args){
             sleep(1);
             continue;
         }
-        usleep(100000);
+        usleep(500000);
         referencetemperature = potenciometerVal;
         strcpy(str_referencetemperature, "Reference temperature: ");
         char buff[20] = "";
