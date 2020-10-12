@@ -14,6 +14,7 @@ pthread_t thread_userinput;
 pthread_t thread_sensordata;
 
 float referencetemperature;
+bool canStart = false;
 
 void *watch_userinput(void *args);
 void *watch_sensordata(void *args);
@@ -130,6 +131,7 @@ void *watch_userinput(void *args){
             strcat(str_referencetemperature, " oC");
 
             if(strcmp(str_histeresis, "")){
+                canStart = true;
                 show_message(messageWindow, "Type: keyboard input", str_referencetemperature, str_histeresis);
             }
         }
@@ -156,6 +158,7 @@ void *watch_userinput(void *args){
             strcat(str_histeresis, " oC");
 
             if(strcmp(str_referencetemperature, "")){
+                canStart = true;
                 show_message(messageWindow, "Type: keyboard input", str_referencetemperature, str_histeresis);
             }
         }
@@ -167,31 +170,44 @@ void *watch_userinput(void *args){
 void *watch_sensordata(void *args){
     WINDOW *sensorsDataWindow = (WINDOW*) args;
 
+    char empty_line[1000] = "";
+
+    for(int i = 0; i < (COLS % 2 ? COLS / 2 - 1  : COLS / 2 - 2); i++){
+        empty_line[i] = ' ';
+    }
+
     for(int i = 1, j = 1; ; i++){
-        char str_printallsensors[100] = "TR: ";
+        if(canStart){
+            char str_printallsensors[100] = "TR: ";
 
-        char buff[20] = "";
-        sprintf(buff, "%.2f", referencetemperature);
+            char buff[20] = "";
+            sprintf(buff, "%.2f", referencetemperature);
 
-        strcat(str_printallsensors, buff);
-        strcat(str_printallsensors, " oC TI: ");
+            strcat(str_printallsensors, buff);
+            strcat(str_printallsensors, " oC TI: ");
 
-        char buff1[20] = "";
-        sprintf(buff1, "%.2f", getFloat());
+            char buff1[20] = "";
+            sprintf(buff1, "%.2f", getFloat());
 
-        strcat(str_printallsensors, buff1);
-        strcat(str_printallsensors, " oC TE: ");
+            strcat(str_printallsensors, buff1);
+            strcat(str_printallsensors, " oC TE: ");
 
-        mvwprintw(sensorsDataWindow, i, j, str_printallsensors);
-        wrefresh(sensorsDataWindow);
+            mvwprintw(sensorsDataWindow, i, j, empty_line);
+            mvwprintw(sensorsDataWindow, i, j, str_printallsensors);
+            wrefresh(sensorsDataWindow);
+        }
+        else{
+            i = 0;
+            sleep(1);
+            continue;
+        }
         
         if(i == LINES - 2){
             i = 0;
-            sleep(1);
-            clear_window(sensorsDataWindow);
         }
         else{
-            sleep(1);
+            mvwprintw(sensorsDataWindow, i+1, j, empty_line);
+            wrefresh(sensorsDataWindow);
         }
 
     }
