@@ -103,8 +103,8 @@ int lcd_init()
 void say_goodbye()
 {
   lcdLoc(LINE1);
-  typeln("   Good Bye!   ");
+  typeln("  Good Bye!  ");
 
   lcdLoc(LINE2);
-  typeln("Have a nice day");
+  typeln(" Thank you:) ");
 }
