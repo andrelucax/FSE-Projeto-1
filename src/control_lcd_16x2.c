@@ -6,45 +6,51 @@
 int fd;
 
 // float to string
-void typeFloat(float myFloat)   {
+void typeFloat(float myFloat)
+{
   char buffer[20];
-  sprintf(buffer, "%4.2f",  myFloat);
+  sprintf(buffer, "%4.2f", myFloat);
   typeln(buffer);
 }
 
 // int to string
-void typeInt(int i)   {
+void typeInt(int i)
+{
   char array1[20];
-  sprintf(array1, "%d",  i);
+  sprintf(array1, "%d", i);
   typeln(array1);
 }
 
 // clr lcd go home loc 0x80
-void ClrLcd(void)   {
+void ClrLcd(void)
+{
   lcd_byte(0x01, LCD_CMD);
   lcd_byte(0x02, LCD_CMD);
 }
 
 // go to location on LCD
-void lcdLoc(int line)   {
+void lcdLoc(int line)
+{
   lcd_byte(line, LCD_CMD);
 }
 
 // out char to LCD at current position
-void typeChar(char val)   {
+void typeChar(char val)
+{
 
   lcd_byte(val, LCD_CHR);
 }
 
-
 // this allows use of any size string
-void typeln(const char *s)   {
+void typeln(const char *s)
+{
 
-  while ( *s ) lcd_byte(*(s++), LCD_CHR);
-
+  while (*s)
+    lcd_byte(*(s++), LCD_CHR);
 }
 
-void lcd_byte(int bits, int mode)   {
+void lcd_byte(int bits, int mode)
+{
 
   //Send byte to data pins
   // bits = the data
@@ -52,8 +58,8 @@ void lcd_byte(int bits, int mode)   {
   int bits_high;
   int bits_low;
   // uses the two half byte writes to LCD
-  bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT ;
-  bits_low = mode | ((bits << 4) & 0xF0) | LCD_BACKLIGHT ;
+  bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT;
+  bits_low = mode | ((bits << 4) & 0xF0) | LCD_BACKLIGHT;
 
   // High bits
   wiringPiI2CReadReg8(fd, bits_high);
@@ -64,7 +70,8 @@ void lcd_byte(int bits, int mode)   {
   lcd_toggle_enable(bits_low);
 }
 
-void lcd_toggle_enable(int bits)   {
+void lcd_toggle_enable(int bits)
+{
   // Toggle enable pin on LCD display
   delayMicroseconds(500);
   wiringPiI2CReadReg8(fd, (bits | ENABLE));
@@ -73,11 +80,11 @@ void lcd_toggle_enable(int bits)   {
   delayMicroseconds(500);
 }
 
-
-void lcd_init()   {
-  if (wiringPiSetup () == -1){
-    printf("Error on LCD\n");
-    exit (1);
+int lcd_init()
+{
+  if (wiringPiSetup() == -1)
+  {
+    return -1;
   }
   fd = wiringPiI2CSetup(I2C_ADDR);
   ClrLcd();
@@ -89,4 +96,15 @@ void lcd_init()   {
   lcd_byte(0x28, LCD_CMD); // Data length, number of lines, font size
   lcd_byte(0x01, LCD_CMD); // Clear display
   delayMicroseconds(500);
+
+  return 0;
+}
+
+void say_goodbye()
+{
+  lcdLoc(LINE1);
+  typeln("   Good Bye!   ");
+
+  lcdLoc(LINE2);
+  typeln("Have a nice day");
 }

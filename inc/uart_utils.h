@@ -1,2 +1,12 @@
+#ifndef _UART_UTILS_H_
+#define _UART_UTILS_H_
+
+#include <stdio.h>
+#include <unistd.h>
+
 int startUart();
-void getDatas(float *res1, float *res2);
+int getDatas(double *ti, double *pot);
+int getTi(double *ti);
+int getPot(double *pot);
+
+#endif /* _UART_UTILS_H_ */
