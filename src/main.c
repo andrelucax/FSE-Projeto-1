@@ -100,17 +100,12 @@ void sig_handler(int signum)
 
 void on_exit_p(bool wait_ui)
 {
-    ClrLcd();
-
     // Turn off vent
     bcm2835_gpio_write(RPI_V2_GPIO_P1_18, 1);
     // Turn off res
     bcm2835_gpio_write(RPI_V2_GPIO_P1_16, 1);
 
-    if (wait_ui)
-    {
-        say_goodbye();
-    }
+    usleep(100000);
 
     // Clean screens
     finish_screens(wait_ui);
