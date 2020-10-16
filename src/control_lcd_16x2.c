@@ -102,6 +102,8 @@ int lcd_init()
 
 void say_goodbye()
 {
+  ClrLcd();
+
   lcdLoc(LINE1);
   typeln("  Good Bye!  ");
 
